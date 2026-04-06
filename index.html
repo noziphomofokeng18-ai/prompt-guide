@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The AI Director Method — Prompt Engineering Guide</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,400&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --black: #080808;
+    --card-bg: #111111;
+    --card-border: #1e1e1e;
+    --gold: #F5C518;
+    --gold-dim: #c9a012;
+    --gold-glow: rgba(245,197,24,0.15);
+    --blue: #4A90D9;
+    --blue-glow: rgba(74,144,217,0.15);
+    --red: #E05252;
+    --white: #F2F0EB;
+    --muted: #888;
+    --text: #D8D4CC;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--black);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 16px;
+    line-height: 1.7;
+    overflow-x: hidden;
+  }
+
+  /* NOISE OVERLAY */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.4;
+  }
+
+  /* HERO */
+  .hero {
+    position: relative;
+    text-align: center;
+    padding: 80px 24px 60px;
+    overflow: hidden;
+  }
+
+  .hero::after {
+    content: '';
+    position: absolute;
+    top: -60px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(245,197,24,0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .brand-tag {
+    display: inline-block;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    color: var(--gold);
+    border: 1px solid rgba(245,197,24,0.3);
+    border-radius: 2px;
+    padding: 5px 14px;
+    margin-bottom: 28px;
+    text-transform: uppercase;
+  }
+
+  .hero h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(2.4rem, 6vw, 4.2rem);
+    font-weight: 900;
+    color: var(--white);
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    margin-bottom: 8px;
+  }
+
+  .hero h1 em {
+    font-style: italic;
+    color: var(--gold);
+  }
+
+  .hero-sub {
+    font-size: 1rem;
+    color: var(--muted);
+    max-width: 440px;
+    margin: 18px auto 0;
+    font-weight: 300;
+  }
+
+  .hero-divider {
+    width: 60px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    margin: 36px auto 0;
+  }
+
+  /* AUTHOR BAR */
+  .author-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 20px 24px;
+    border-top: 1px solid var(--card-border);
+    border-bottom: 1px solid var(--card-border);
+    margin-bottom: 56px;
+  }
+
+  .author-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--gold);
+  }
+
+  .author-bar span {
+    font-size: 0.82rem;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+  }
+
+  .author-bar strong {
+    color: var(--white);
+    font-weight: 600;
+  }
+
+  /* MAIN CONTENT */
+  .container {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 0 24px 80px;
+  }
+
+  /* INTRO BLOCK */
+  .intro-block {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-left: 3px solid var(--gold);
+    border-radius: 8px;
+    padding: 28px 32px;
+    margin-bottom: 56px;
+  }
+
+  .intro-block p {
+    font-size: 1.05rem;
+    line-height: 1.8;
+    color: var(--text);
+  }
+
+  .intro-block p + p {
+    margin-top: 14px;
+  }
+
+  .intro-block strong {
+    color: var(--white);
+  }
+
+  /* SECTION HEADER */
+  .section-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.25em;
+    color: var(--gold);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .section-title {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(1.6rem, 4vw, 2.2rem);
+    font-weight: 700;
+    color: var(--white);
+    line-height: 1.2;
+    margin-bottom: 32px;
+  }
+
+  /* FRAMEWORK OVERVIEW */
+  .framework-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    margin-bottom: 56px;
+  }
+
+  @media (max-width: 600px) {
+    .framework-grid { grid-template-columns: 1fr 1fr; }
+    .framework-grid .pill:last-child { grid-column: span 2; }
+  }
+
+  .pill {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 6px;
+    padding: 16px 10px;
+    text-align: center;
+    transition: border-color 0.2s, transform 0.2s;
+  }
+
+  .pill:hover {
+    border-color: var(--gold);
+    transform: translateY(-2px);
+  }
+
+  .pill-letter {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.8rem;
+    font-weight: 900;
+    color: var(--gold);
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .pill-word {
+    font-size: 0.65rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* PRINCIPLE CARDS */
+  .principle-card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    padding: 32px;
+    margin-bottom: 20px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.3s;
+  }
+
+  .principle-card:hover { border-color: rgba(245,197,24,0.3); }
+
+  .principle-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--gold), transparent);
+  }
+
+  .card-number {
+    font-family: 'Playfair Display', serif;
+    font-size: 3.5rem;
+    font-weight: 900;
+    color: rgba(245,197,24,0.08);
+    position: absolute;
+    top: 16px;
+    right: 24px;
+    line-height: 1;
+    pointer-events: none;
+  }
+
+  .card-tag {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 10px;
+  }
+
+  .card-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--white);
+    margin-bottom: 14px;
+    line-height: 1.3;
+  }
+
+  .card-body {
+    font-size: 0.93rem;
+    color: var(--text);
+    line-height: 1.8;
+    margin-bottom: 20px;
+  }
+
+  /* FORMULA BOX */
+  .formula-box {
+    background: rgba(245,197,24,0.05);
+    border: 1px solid rgba(245,197,24,0.2);
+    border-radius: 6px;
+    padding: 16px 20px;
+    margin-top: 16px;
+  }
+
+  .formula-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--gold-dim);
+    margin-bottom: 8px;
+  }
+
+  .formula-text {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.82rem;
+    color: var(--gold);
+    line-height: 1.6;
+  }
+
+  /* EXAMPLE BOX */
+  .example-box {
+    background: #0d1117;
+    border: 1px solid #1f2937;
+    border-left: 3px solid var(--blue);
+    border-radius: 6px;
+    padding: 16px 20px;
+    margin-top: 14px;
+  }
+
+  .example-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--blue);
+    margin-bottom: 8px;
+  }
+
+  .example-text {
+    font-size: 0.87rem;
+    color: #94a3b8;
+    line-height: 1.7;
+    font-style: italic;
+  }
+
+  .example-text em {
+    color: var(--white);
+    font-style: normal;
+    font-weight: 500;
+  }
+
+  /* MISTAKES SECTION */
+  .mistake-list {
+    margin-bottom: 56px;
+  }
+
+  .mistake-item {
+    display: flex;
+    gap: 16px;
+    padding: 20px 0;
+    border-bottom: 1px solid var(--card-border);
+  }
+
+  .mistake-item:last-child { border-bottom: none; }
+
+  .mistake-icon {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(224,82,82,0.1);
+    border: 1px solid rgba(224,82,82,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    color: var(--red);
+    font-weight: 700;
+    margin-top: 2px;
+  }
+
+  .mistake-content strong {
+    color: var(--white);
+    font-size: 0.95rem;
+    display: block;
+    margin-bottom: 4px;
+  }
+
+  .mistake-content p {
+    font-size: 0.88rem;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  .fix-tag {
+    display: inline-block;
+    font-size: 0.78rem;
+    color: #4ade80;
+    margin-top: 6px;
+  }
+
+  /* CHEAT SHEET TABLE */
+  .cheat-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 56px;
+    font-size: 0.88rem;
+  }
+
+  .cheat-table th {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--gold);
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--card-border);
+    background: rgba(245,197,24,0.04);
+  }
+
+  .cheat-table td {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--card-border);
+    color: var(--text);
+    vertical-align: top;
+    line-height: 1.5;
+  }
+
+  .cheat-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+  .cheat-table td:first-child {
+    color: var(--white);
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  .cheat-table td code {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.82rem;
+    color: var(--gold);
+    background: rgba(245,197,24,0.08);
+    padding: 2px 6px;
+    border-radius: 3px;
+  }
+
+  /* FINAL CTA / FOOTER */
+  .footer-block {
+    text-align: center;
+    padding: 56px 24px 40px;
+    border-top: 1px solid var(--card-border);
+    position: relative;
+  }
+
+  .footer-block::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80px;
+    height: 2px;
+    background: var(--gold);
+  }
+
+  .footer-name {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.5rem;
+    font-weight: 900;
+    color: var(--white);
+    margin-bottom: 4px;
+  }
+
+  .footer-title {
+    font-family: 'Playfair Display', serif;
+    font-style: italic;
+    font-size: 1rem;
+    color: var(--gold);
+    margin-bottom: 16px;
+  }
+
+  .footer-copy {
+    font-size: 0.82rem;
+    color: var(--muted);
+  }
+
+  /* ANIMATE IN */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .hero, .intro-block, .principle-card, .framework-grid {
+    animation: fadeUp 0.6s ease both;
+  }
+
+  .principle-card:nth-child(1) { animation-delay: 0.1s; }
+  .principle-card:nth-child(2) { animation-delay: 0.2s; }
+  .principle-card:nth-child(3) { animation-delay: 0.3s; }
+  .principle-card:nth-child(4) { animation-delay: 0.4s; }
+  .principle-card:nth-child(5) { animation-delay: 0.5s; }
+
+  /* PRINT / PDF */
+  @media print {
+    body { background: #fff; color: #111; }
+    .principle-card, .intro-block, .example-box, .formula-box { break-inside: avoid; }
+  }
+
+  /* HIGHLIGHT SPANS */
+  .hl-gold { color: var(--gold); font-weight: 600; }
+  .hl-blue { color: var(--blue); }
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="brand-tag">Nozi — The AI Director &nbsp;·&nbsp; Free Resource</div>
+  <h1>The <em>AI Director</em><br>Method</h1>
+  <p class="hero-sub">A research-backed prompting system for South African entrepreneurs who want real business results — not AI experiments.</p>
+  <div class="hero-divider"></div>
+</div>
+
+<!-- AUTHOR BAR -->
+<div class="author-bar">
+  <div class="author-dot"></div>
+  <span>By <strong>Nozi Mofokeng</strong> &nbsp;·&nbsp; The AI Director &nbsp;·&nbsp; Helping SA Entrepreneurs Build Income With AI</span>
+  <div class="author-dot"></div>
+</div>
+
+<!-- MAIN CONTENT -->
+<div class="container">
+
+  <!-- INTRO -->
+  <div class="intro-block">
+    <p>Most people get bad AI results because they <strong>talk to AI like a search engine.</strong> They type a vague question, get a generic answer, and assume AI isn't that powerful.</p>
+    <p>It is powerful. You just need to know how to <strong>direct it</strong> — like a director gives direction to talent on set. That's what this guide teaches.</p>
+    <p>The <strong>AI Director Method</strong> is a 5-principle system built from prompt engineering research, including studies from Stanford, OpenAI, Anthropic, and real-world business applications. Apply it and you'll get outputs that actually save you time, make you money, and sound like <em>you.</em></p>
+  </div>
+
+  <!-- FRAMEWORK OVERVIEW -->
+  <div class="section-label">The Framework</div>
+  <div class="section-title">The A·D·I·R·E Method</div>
+
+  <div class="framework-grid">
+    <div class="pill"><div class="pill-letter">A</div><div class="pill-word">Assign</div></div>
+    <div class="pill"><div class="pill-letter">D</div><div class="pill-word">Define</div></div>
+    <div class="pill"><div class="pill-letter">I</div><div class="pill-word">Instruct</div></div>
+    <div class="pill"><div class="pill-letter">R</div><div class="pill-word">Restrict</div></div>
+    <div class="pill"><div class="pill-letter">E</div><div class="pill-word">Example</div></div>
+  </div>
+
+  <!-- PRINCIPLE 1 -->
+  <div class="section-label">Principle 1 of 5</div>
+  <div class="section-title">The 5 Principles</div>
+
+  <div class="principle-card">
+    <div class="card-number">01</div>
+    <div class="card-tag">A — Assign</div>
+    <div class="card-title">Give AI a Role Before You Ask Anything</div>
+    <div class="card-body">
+      Research from OpenAI and Anthropic consistently shows that assigning a specific role before your request improves output quality by up to 40%. When AI knows <em>who it's supposed to be</em>, it activates the right "mode" of thinking, vocabulary, and expertise.
+      <br><br>
+      Don't just open a new chat and start typing. Open with a role. The more specific the role, the sharper the result.
+    </div>
+    <div class="formula-box">
+      <div class="formula-label">Formula</div>
+      <div class="formula-text">"You are a [specific expert] with [years/type of experience] who specialises in [niche]. Your job is to help me with [task]."</div>
+    </div>
+    <div class="example-box">
+      <div class="example-label">SA Business Example</div>
+      <div class="example-text"><em>"You are a South African digital marketing strategist with 10 years of experience growing small businesses on a tight budget. Your job is to help me write a TikTok caption that drives people to my WhatsApp."</em></div>
+    </div>
+  </div>
+
+  <!-- PRINCIPLE 2 -->
+  <div class="principle-card">
+    <div class="card-number">02</div>
+    <div class="card-tag">D — Define</div>
+    <div class="card-title">Define the Output, Not Just the Task</div>
+    <div class="card-body">
+      Most people tell AI <em>what to do</em> but never describe <em>what the result should look like.</em> Length, format, tone, audience — these details are what separate a generic answer from something you can actually use. Studies show that output-defined prompts reduce editing time by over 60%.
+      <br><br>
+      Think of it like briefing a contractor. You don't just say "build me something" — you give specs.
+    </div>
+    <div class="formula-box">
+      <div class="formula-label">Formula</div>
+      <div class="formula-text">"Write a [length] [format] in a [tone] tone for [audience]. It must include [key elements] and avoid [what to leave out]."</div>
+    </div>
+    <div class="example-box">
+      <div class="example-label">SA Business Example</div>
+      <div class="example-text"><em>"Write a 3-paragraph WhatsApp follow-up message in a warm but professional tone for a potential client who saw my pricing. Keep it under 150 words. No pushy sales language. End with a soft call to action."</em></div>
+    </div>
+  </div>
+
+  <!-- PRINCIPLE 3 -->
+  <div class="principle-card">
+    <div class="card-number">03</div>
+    <div class="card-tag">I — Instruct</div>
+    <div class="card-title">Give Step-by-Step Instructions for Complex Tasks</div>
+    <div class="card-body">
+      For anything beyond a simple task, break your instruction into steps. This is called <span class="hl-gold">Chain-of-Thought prompting</span> — a technique proven by Google DeepMind research to dramatically improve accuracy and logic in AI outputs. When you structure your instruction, AI structures its thinking.
+      <br><br>
+      This is especially powerful for business strategy, content planning, and writing SOPs.
+    </div>
+    <div class="formula-box">
+      <div class="formula-label">Formula</div>
+      <div class="formula-text">Step 1: [First thing AI should do]<br>Step 2: [Second thing]<br>Step 3: [Third thing]<br>Only move to the next step when the previous one is complete.</div>
+    </div>
+    <div class="example-box">
+      <div class="example-label">SA Business Example</div>
+      <div class="example-text"><em>"Help me create a 30-day content plan. Step 1: Ask me 3 questions about my business and audience. Step 2: Based on my answers, suggest 5 content themes. Step 3: For each theme, write 6 post ideas. Do not move to the next step until I confirm."</em></div>
+    </div>
+  </div>
+
+  <!-- PRINCIPLE 4 -->
+  <div class="principle-card">
+    <div class="card-number">04</div>
+    <div class="card-tag">R — Restrict</div>
+    <div class="card-title">Use Negative Prompting to Cut the Fluff</div>
+    <div class="card-body">
+      AI has a habit of padding responses with filler phrases, generic advice, and unnecessary disclaimers. <span class="hl-gold">Negative prompting</span> — explicitly telling AI what NOT to do — is one of the most underused and highest-impact techniques available. Anthropic's internal research shows it significantly sharpens response quality.
+      <br><br>
+      The more you restrict, the more focused and usable the output becomes. Think of it as editing before you even start.
+    </div>
+    <div class="formula-box">
+      <div class="formula-label">Formula</div>
+      <div class="formula-text">"Do NOT include: [list of things to exclude].<br>Do NOT start with phrases like 'Certainly!' or 'Great question!'<br>Do NOT add disclaimers. Be direct."</div>
+    </div>
+    <div class="example-box">
+      <div class="example-label">SA Business Example</div>
+      <div class="example-text"><em>"Write me 5 Instagram captions for my sea moss gel business. Do NOT use hashtags. Do NOT start with 'Are you looking for...'. Do NOT use generic wellness clichés. Keep each caption under 3 sentences. Sound like a real person, not a brand robot."</em></div>
+    </div>
+  </div>
+
+  <!-- PRINCIPLE 5 -->
+  <div class="principle-card">
+    <div class="card-number">05</div>
+    <div class="card-tag">E — Example</div>
+    <div class="card-title">Show AI What Good Looks Like</div>
+    <div class="card-body">
+      This is called <span class="hl-gold">Few-Shot Prompting</span> — giving AI one or more examples of the output style you want before asking it to produce. Stanford NLP research confirmed this is the single most effective way to get AI to match your voice, format, and tone.
+      <br><br>
+      If you have existing content you love — a caption, an email, a social post — paste it in and say "write like this." You'll immediately notice the difference.
+    </div>
+    <div class="formula-box">
+      <div class="formula-label">Formula</div>
+      <div class="formula-text">"Here is an example of writing I like: [paste example]<br><br>Now write [new piece] in the same style, tone, and length."</div>
+    </div>
+    <div class="example-box">
+      <div class="example-label">SA Business Example</div>
+      <div class="example-text"><em>"Here's a TikTok caption I wrote that did well: 'You don't need a degree to build a business. You need the right tools — and one of them is free.' Write me 5 more captions in this exact style for the topic of AI automation."</em></div>
+    </div>
+  </div>
+
+  <!-- MISTAKES SECTION -->
+  <div class="section-label" style="margin-top:56px">Avoid These</div>
+  <div class="section-title">5 Mistakes That Kill Your Prompts</div>
+
+  <div class="mistake-list">
+    <div class="mistake-item">
+      <div class="mistake-icon">✕</div>
+      <div class="mistake-content">
+        <strong>Being vague ("Write me a caption")</strong>
+        <p>No role. No audience. No format. No tone. You get a generic output because you gave a generic input.</p>
+        <span class="fix-tag">✓ Fix: Use the ADIRE formula — even partially</span>
+      </div>
+    </div>
+
+    <div class="mistake-item">
+      <div class="mistake-icon">✕</div>
+      <div class="mistake-content">
+        <strong>Accepting the first output</strong>
+        <p>AI's first answer is never its best. Ask it to "go deeper," "try a bolder angle," or "rewrite this with more urgency." Iteration is where the gold is.</p>
+        <span class="fix-tag">✓ Fix: Always ask for at least 2–3 variations before choosing</span>
+      </div>
+    </div>
+
+    <div class="mistake-item">
+      <div class="mistake-icon">✕</div>
+      <div class="mistake-content">
+        <strong>One giant wall of text prompt</strong>
+        <p>When you dump 500 words into a prompt without structure, AI picks and chooses what to respond to — and often misses the most important parts.</p>
+        <span class="fix-tag">✓ Fix: Use numbered steps, line breaks, and clear sections</span>
+      </div>
+    </div>
+
+    <div class="mistake-item">
+      <div class="mistake-icon">✕</div>
+      <div class="mistake-content">
+        <strong>Starting a new chat every time</strong>
+        <p>AI has no memory between chats. If you keep starting fresh, you keep repeating context. Build a Master Context Block — a paragraph about you, your business, your audience — and paste it at the start of every new session.</p>
+        <span class="fix-tag">✓ Fix: Create your personal Context Block and save it in Notes</span>
+      </div>
+    </div>
+
+    <div class="mistake-item">
+      <div class="mistake-icon">✕</div>
+      <div class="mistake-content">
+        <strong>Not telling AI who the audience is</strong>
+        <p>AI doesn't know your customers. A post for a 22-year-old Soweto entrepreneur reads completely differently to one for a 45-year-old Sandton business owner. Tell AI exactly who it's writing for.</p>
+        <span class="fix-tag">✓ Fix: Add "My audience is [age, location, pain point, aspiration]" to every prompt</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHEAT SHEET -->
+  <div class="section-label">Quick Reference</div>
+  <div class="section-title">The Prompt Cheat Sheet</div>
+
+  <table class="cheat-table">
+    <thead>
+      <tr>
+        <th>Task</th>
+        <th>Starter Phrase</th>
+        <th>Key Addition</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Social caption</td>
+        <td><code>"You are a copywriter..."</code></td>
+        <td>Audience + platform + tone + word limit</td>
+      </tr>
+      <tr>
+        <td>Client email</td>
+        <td><code>"Write a professional email..."</code></td>
+        <td>Context of situation + desired outcome</td>
+      </tr>
+      <tr>
+        <td>Business strategy</td>
+        <td><code>"Act as a business strategist..."</code></td>
+        <td>Step-by-step + ask clarifying questions first</td>
+      </tr>
+      <tr>
+        <td>Content plan</td>
+        <td><code>"Help me plan 30 days of content..."</code></td>
+        <td>Themes + platforms + posting frequency</td>
+      </tr>
+      <tr>
+        <td>Pricing / offer</td>
+        <td><code>"You are a pricing strategist..."</code></td>
+        <td>Market (SA), competitor context, target income</td>
+      </tr>
+      <tr>
+        <td>Product description</td>
+        <td><code>"Write a product description..."</code></td>
+        <td>Benefits over features + target buyer + CTA</td>
+      </tr>
+      <tr>
+        <td>SOP / How-to</td>
+        <td><code>"Create a step-by-step guide..."</code></td>
+        <td>Who follows it + their skill level</td>
+      </tr>
+      <tr>
+        <td>Responding to complaints</td>
+        <td><code>"Write a professional, empathetic response..."</code></td>
+        <td>Paste the complaint + your policy + desired tone</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- CONTEXT BLOCK TEMPLATE -->
+  <div class="section-label">Bonus Tool</div>
+  <div class="section-title">Your Master Context Block</div>
+
+  <div class="intro-block" style="border-left-color: var(--blue);">
+    <p>Copy this, fill it in, and paste it at the start of every new AI chat. This single habit will improve every output you get — immediately.</p>
+  </div>
+
+  <div class="principle-card" style="margin-bottom: 0;">
+    <div class="card-tag">Template — Customise &amp; Save This</div>
+    <div class="formula-box" style="margin-top: 0;">
+      <div class="formula-label">Your Personal AI Context Block</div>
+      <div class="formula-text" style="line-height: 2;">
+        My name is [Name].<br>
+        I run [business name] — [one sentence description].<br>
+        My target customer is [age, location, pain point, aspiration].<br>
+        My brand tone is [e.g. warm, direct, confident, no fluff].<br>
+        My main platforms are [e.g. TikTok, WhatsApp, Instagram].<br>
+        My goal right now is [e.g. get more leads, launch a product, grow to R10k/month].<br>
+        <br>
+        Keep all outputs relevant to South Africa unless I say otherwise.<br>
+        Do not use unnecessary corporate jargon.<br>
+        Always give me practical, actionable outputs I can use today.
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- FOOTER -->
+<div class="footer-block">
+  <div class="footer-name">Nozi Mofokeng</div>
+  <div class="footer-title">The AI Director</div>
+  <div class="footer-copy">Helping South African Entrepreneurs Build Real Income With AI<br>
+  <span style="opacity:0.5; font-size:0.78rem; margin-top: 8px; display:block;">© 2025 Nozi — The AI Director. All rights reserved.</span></div>
+</div>
+
+</body>
+</html>
